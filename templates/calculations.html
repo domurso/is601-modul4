@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calculations - Calculations API</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 min-h-screen p-4">
+    <div class="max-w-4xl mx-auto">
+        <h2 class="text-2xl font-bold mb-6 text-center">Your Calculations</h2>
+        <div class="mb-6">
+            <h3 class="text-lg font-semibold mb-2">Add Calculation</h3>
+            <form id="add-calculation-form" class="space-y-4">
+                <div>
+                    <label for="type" class="block text-sm font-medium text-gray-700">Operation</label>
+                    <select id="type" name="type" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md">
+                        <option value="add">Add</option>
+                        <option value="subtract">Subtract</option>
+                        <option value="multiply">Multiply</option>
+                        <option value="divide">Divide</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="inputs" class="block text-sm font-medium text-gray-700">Inputs (comma-separated numbers, e.g., 5,3)</label>
+                    <input type="text" id="inputs" name="inputs" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md">
+                </div>
+                <button type="submit" class="bg-indigo-600 text-white py-2 px-4 rounded-md hover:bg-indigo-700">Add</button>
+            </form>
+            <p id="add-error" class="text-red-500 text-sm mt-2 hidden"></p>
+            <p id="add-success" class="text-green-500 text-sm mt-2 hidden"></p>
+        </div>
+        <div id="calculations-list" class="space-y-4"></div>
+        <p class="mt-4 text-center">
+            <a href="/login" class="text-indigo-600 hover:underline">Log Out</a>
+        </p>
+    </div>
+
+    <script>
+        async function fetchCalculations() {
+            const token = localStorage.getItem('access_token');
+            if (!token) {
+                alert('Please log in first');
+                window.location.href = '/login';
+                return;
+            }
+            try {
+                const response = await fetch('/calculations', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (response.ok) {
+                    const calculations = await response.json();
+                    const list = document.getElementById('calculations-list');
+                    list.innerHTML = '';
+                    calculations.forEach(calc => {
+                        const div = document.createElement('div');
+                        div.className = 'bg-white p-4 rounded-lg shadow-md';
+                        div.innerHTML = `
+                            <p><strong>ID:</strong> ${calc.id}</p>
+                            <p><strong>Type:</strong> ${calc.type}</p>
+                            <p><strong>Inputs:</strong> ${calc.inputs.join(', ')}</p>
+                            <p><strong>Result:</strong> ${calc.result}</p>
+                            <button onclick="editCalculation('${calc.id}')" class="bg-yellow-500 text-white py-1 px-2 rounded-md hover:bg-yellow-600">Edit</button>
+                            <button onclick="deleteCalculation('${calc.id}')" class="bg-red-500 text-white py-1 px-2 rounded-md hover:bg-red-600">Delete</button>
+                        `;
+                        list.appendChild(div);
+                    });
+                } else {
+                    alert('Failed to fetch calculations: ' + (await response.text()));
+                }
+            } catch (err) {
+                alert('Error fetching calculations: ' + err.message);
+            }
+        }
+
+        async function editCalculation(calcId) {
+            const token = localStorage.getItem('access_token');
+            const inputs = prompt('Enter new inputs (comma-separated numbers, e.g., 8,2):');
+            if (!inputs) return;
+            const inputsArray = inputs.split(',').map(Number);
+            if (inputsArray.some(isNaN)) {
+                alert('Inputs must be valid numbers');
+                return;
+            }
+            try {
+                const response = await fetch(`/calculations/${calcId}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ inputs: inputsArray })
+                });
+                if (response.ok) {
+                    fetchCalculations();
+                } else {
+                    alert('Failed to update calculation: ' + (await response.text()));
+                }
+            } catch (err) {
+                alert('Error updating calculation: ' + err.message);
+            }
+        }
+
+        async function deleteCalculation(calcId) {
+            if (!confirm('Are you sure you want to delete this calculation?')) return;
+            const token = localStorage.getItem('access_token');
+            try {
+                const response = await fetch(`/calculations/${calcId}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                if (response.ok) {
+                    fetchCalculations();
+                } else {
+                    alert('Failed to delete calculation: ' + (await response.text()));
+                }
+            } catch (err) {
+                alert('Error deleting calculation: ' + err.message);
+            }
+        }
+
+        document.getElementById('add-calculation-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const error = document.getElementById('add-error');
+            const success = document.getElementById('add-success');
+            error.classList.add('hidden');
+            success.classList.add('hidden');
+
+            const formData = new FormData(e.target);
+            const data = {
+                type: formData.get('type'),
+                inputs: formData.get('inputs').split(',').map(Number)
+            };
+            if (data.inputs.some(isNaN)) {
+                error.textContent = 'Inputs must be valid numbers';
+                error.classList.remove('hidden');
+                return;
+            }
+            if (data.inputs.length < 2) {
+                error.textContent = 'At least two inputs are required';
+                error.classList.remove('hidden');
+                return;
+            }
+
+            const token = localStorage.getItem('access_token');
+            try {
+                const response = await fetch('/calculations', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify(data)
+                });
+                if (response.ok) {
+                    success.textContent = 'Calculation added successfully!';
+                    success.classList.remove('hidden');
+                    e.target.reset();
+                    fetchCalculations();
+                } else {
+                    const err = await response.json();
+                    error.textContent = err.detail || 'Failed to add calculation';
+                    error.classList.remove('hidden');
+                }
+            } catch (err) {
+                error.textContent = 'Error adding calculation: ' + err.message;
+                error.classList.remove('hidden');
+            }
+        });
+
+        fetchCalculations();
+    </script>
+</body>
+</html>
