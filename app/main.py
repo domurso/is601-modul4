@@ -43,7 +43,7 @@ async def get_register(request: Request):
 async def get_login(request: Request):
     return templates.TemplateResponse("login.html", {"request": request})
 
-@app.get("/calculations", tags=["calculations"])
+@app.get("/calculations-page", tags=["calculations"])
 async def get_calculations_page(request: Request):
     return templates.TemplateResponse("calculations.html", {"request": request})
 
@@ -123,7 +123,7 @@ def create_calculation(calculation_data: CalculationBase, current_user=Depends(g
 @app.get("/calculations", response_model=List[CalculationResponse], tags=["calculations"])
 def list_calculations(current_user=Depends(get_current_active_user), db: Session = Depends(get_db)):
     calculations = db.query(Calculation).filter(Calculation.user_id == current_user.id).all()
-    return calculations
+    return calculations if calculations else []
 
 @app.get("/calculations/{calc_id}", response_model=CalculationResponse, tags=["calculations"])
 def get_calculation(calc_id: str, current_user=Depends(get_current_active_user), db: Session = Depends(get_db)):

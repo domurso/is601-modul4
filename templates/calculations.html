@@ -48,9 +48,18 @@
                 const response = await fetch('/calculations', {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
-                console.log('Fetch calculations response:', response.status, await response.text());
+                console.log('Fetch calculations response status:', response.status);
+                const responseBody = await response.text();
+                console.log('Fetch calculations response body:', responseBody);
                 if (response.ok) {
-                    const calculations = await response.json();
+                    let calculations;
+                    try {
+                        calculations = responseBody ? JSON.parse(responseBody) : [];
+                    } catch (err) {
+                        console.error('JSON parse error:', err.message, 'Response body:', responseBody);
+                        alert('Error parsing calculations data. Please try again.');
+                        return;
+                    }
                     const list = document.getElementById('calculations-list');
                     list.innerHTML = '';
                     if (calculations.length === 0) {
@@ -70,10 +79,12 @@
                             list.appendChild(div);
                         });
                     }
+                } else if (response.status === 401) {
+                    alert('Session expired. Please log in again.');
+                    window.location.href = '/login';
                 } else {
-                    const errorText = await response.text();
-                    alert(`Failed to fetch calculations: ${errorText}`);
-                    console.error('Fetch calculations failed:', errorText);
+                    alert(`Failed to fetch calculations: ${response.status} ${responseBody}`);
+                    console.error('Fetch calculations failed:', response.status, responseBody);
                 }
             } catch (err) {
                 alert('Error fetching calculations: ' + err.message);
@@ -106,13 +117,13 @@
                     },
                     body: JSON.stringify({ inputs: inputsArray })
                 });
-                console.log('Edit calculation response:', response.status, await response.text());
+                const responseBody = await response.text();
+                console.log('Edit calculation response:', response.status, responseBody);
                 if (response.ok) {
                     fetchCalculations();
                 } else {
-                    const errorText = await response.text();
-                    alert(`Failed to update calculation: ${errorText}`);
-                    console.error('Edit calculation failed:', errorText);
+                    alert(`Failed to update calculation: ${response.status} ${responseBody}`);
+                    console.error('Edit calculation failed:', response.status, responseBody);
                 }
             } catch (err) {
                 alert('Error updating calculation: ' + err.message);
@@ -129,13 +140,13 @@
                     method: 'DELETE',
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
-                console.log('Delete calculation response:', response.status, await response.text());
+                const responseBody = await response.text();
+                console.log('Delete calculation response:', response.status, responseBody);
                 if (response.ok) {
                     fetchCalculations();
                 } else {
-                    const errorText = await response.text();
-                    alert(`Failed to delete calculation: ${errorText}`);
-                    console.error('Delete calculation failed:', errorText);
+                    alert(`Failed to delete calculation: ${response.status} ${responseBody}`);
+                    console.error('Delete calculation failed:', response.status, responseBody);
                 }
             } catch (err) {
                 alert('Error deleting calculation: ' + err.message);
@@ -186,17 +197,23 @@
                     },
                     body: JSON.stringify(data)
                 });
-                console.log('Add calculation response:', response.status, await response.text());
+                const responseBody = await response.text();
+                console.log('Add calculation response:', response.status, responseBody);
                 if (response.ok) {
                     success.textContent = 'Calculation added successfully!';
                     success.classList.remove('hidden');
                     e.target.reset();
                     fetchCalculations();
                 } else {
-                    const err = await response.json();
-                    error.textContent = err.detail || 'Failed to add calculation';
+                    let errorDetail;
+                    try {
+                        errorDetail = JSON.parse(responseBody).detail;
+                    } catch {
+                        errorDetail = responseBody;
+                    }
+                    error.textContent = errorDetail || 'Failed to add calculation';
                     error.classList.remove('hidden');
-                    console.error('Add calculation failed:', err);
+                    console.error('Add calculation failed:', errorDetail);
                 }
             } catch (err) {
                 error.textContent = 'Error adding calculation: ' + err.message;
