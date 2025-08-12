@@ -15,14 +15,14 @@
                 <div>
                     <label for="type" class="block text-sm font-medium text-gray-700">Operation</label>
                     <select id="type" name="type" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md">
-                        <option value="add">Add</option>
-                        <option value="subtract">Subtract</option>
-                        <option value="multiply">Multiply</option>
-                        <option value="divide">Divide</option>
+                        <option value="addition">Add</option>
+                        <option value="subtraction">Subtract</option>
+                        <option value="multiplication">Multiply</option>
+                        <option value="division">Divide</option>
                     </select>
                 </div>
                 <div>
-                    <label for="inputs" class="block text-sm font-medium text-gray-700">Inputs (comma-separated numbers, e.g., 5,3)</label>
+                    <label for="inputs" class="block text-sm font-medium text-gray-700">Inputs (comma-separated numbers, e.g., 2,2 for result 4)</label>
                     <input type="text" id="inputs" name="inputs" required class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md">
                 </div>
                 <button type="submit" class="bg-indigo-600 text-white py-2 px-4 rounded-md hover:bg-indigo-700">Add</button>
@@ -35,10 +35,10 @@
             <a href="/login" class="text-indigo-600 hover:underline">Log Out</a>
         </p>
     </div>
-
     <script>
         async function fetchCalculations() {
             const token = localStorage.getItem('access_token');
+            console.log('Fetching calculations with token:', token ? 'Present' : 'Missing');
             if (!token) {
                 alert('Please log in first');
                 window.location.href = '/login';
@@ -48,38 +48,53 @@
                 const response = await fetch('/calculations', {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
+                console.log('Fetch calculations response:', response.status, await response.text());
                 if (response.ok) {
                     const calculations = await response.json();
                     const list = document.getElementById('calculations-list');
                     list.innerHTML = '';
-                    calculations.forEach(calc => {
-                        const div = document.createElement('div');
-                        div.className = 'bg-white p-4 rounded-lg shadow-md';
-                        div.innerHTML = `
-                            <p><strong>ID:</strong> ${calc.id}</p>
-                            <p><strong>Type:</strong> ${calc.type}</p>
-                            <p><strong>Inputs:</strong> ${calc.inputs.join(', ')}</p>
-                            <p><strong>Result:</strong> ${calc.result}</p>
-                            <button onclick="editCalculation('${calc.id}')" class="bg-yellow-500 text-white py-1 px-2 rounded-md hover:bg-yellow-600">Edit</button>
-                            <button onclick="deleteCalculation('${calc.id}')" class="bg-red-500 text-white py-1 px-2 rounded-md hover:bg-red-600">Delete</button>
-                        `;
-                        list.appendChild(div);
-                    });
+                    if (calculations.length === 0) {
+                        list.innerHTML = '<p class="text-gray-500">No calculations found.</p>';
+                    } else {
+                        calculations.forEach(calc => {
+                            const div = document.createElement('div');
+                            div.className = 'bg-white p-4 rounded-lg shadow-md';
+                            div.innerHTML = `
+                                <p><strong>ID:</strong> ${calc.id}</p>
+                                <p><strong>Type:</strong> ${calc.type}</p>
+                                <p><strong>Inputs:</strong> ${calc.inputs.join(', ')}</p>
+                                <p><strong>Result:</strong> ${calc.result}</p>
+                                <button onclick="editCalculation('${calc.id}')" class="bg-yellow-500 text-white py-1 px-2 rounded-md hover:bg-yellow-600">Edit</button>
+                                <button onclick="deleteCalculation('${calc.id}')" class="bg-red-500 text-white py-1 px-2 rounded-md hover:bg-red-600">Delete</button>
+                            `;
+                            list.appendChild(div);
+                        });
+                    }
                 } else {
-                    alert('Failed to fetch calculations: ' + (await response.text()));
+                    const errorText = await response.text();
+                    alert(`Failed to fetch calculations: ${errorText}`);
+                    console.error('Fetch calculations failed:', errorText);
                 }
             } catch (err) {
                 alert('Error fetching calculations: ' + err.message);
+                console.error('Fetch calculations error:', err);
             }
         }
 
         async function editCalculation(calcId) {
             const token = localStorage.getItem('access_token');
-            const inputs = prompt('Enter new inputs (comma-separated numbers, e.g., 8,2):');
+            console.log('Editing calculation ID:', calcId);
+            const inputs = prompt('Enter new inputs (comma-separated numbers, e.g., 8,4 for subtraction result 4):');
             if (!inputs) return;
             const inputsArray = inputs.split(',').map(Number);
             if (inputsArray.some(isNaN)) {
                 alert('Inputs must be valid numbers');
+                console.error('Invalid inputs:', inputs);
+                return;
+            }
+            if (inputsArray.length < 2) {
+                alert('At least two inputs are required');
+                console.error('Too few inputs:', inputsArray);
                 return;
             }
             try {
@@ -91,31 +106,40 @@
                     },
                     body: JSON.stringify({ inputs: inputsArray })
                 });
+                console.log('Edit calculation response:', response.status, await response.text());
                 if (response.ok) {
                     fetchCalculations();
                 } else {
-                    alert('Failed to update calculation: ' + (await response.text()));
+                    const errorText = await response.text();
+                    alert(`Failed to update calculation: ${errorText}`);
+                    console.error('Edit calculation failed:', errorText);
                 }
             } catch (err) {
                 alert('Error updating calculation: ' + err.message);
+                console.error('Edit calculation error:', err);
             }
         }
 
         async function deleteCalculation(calcId) {
             if (!confirm('Are you sure you want to delete this calculation?')) return;
             const token = localStorage.getItem('access_token');
+            console.log('Deleting calculation ID:', calcId);
             try {
                 const response = await fetch(`/calculations/${calcId}`, {
                     method: 'DELETE',
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
+                console.log('Delete calculation response:', response.status, await response.text());
                 if (response.ok) {
                     fetchCalculations();
                 } else {
-                    alert('Failed to delete calculation: ' + (await response.text()));
+                    const errorText = await response.text();
+                    alert(`Failed to delete calculation: ${errorText}`);
+                    console.error('Delete calculation failed:', errorText);
                 }
             } catch (err) {
                 alert('Error deleting calculation: ' + err.message);
+                console.error('Delete calculation error:', err);
             }
         }
 
@@ -131,18 +155,28 @@
                 type: formData.get('type'),
                 inputs: formData.get('inputs').split(',').map(Number)
             };
+            console.log('Submitting calculation:', data);
             if (data.inputs.some(isNaN)) {
                 error.textContent = 'Inputs must be valid numbers';
                 error.classList.remove('hidden');
+                console.error('Invalid inputs:', data.inputs);
                 return;
             }
             if (data.inputs.length < 2) {
                 error.textContent = 'At least two inputs are required';
                 error.classList.remove('hidden');
+                console.error('Too few inputs:', data.inputs);
                 return;
             }
 
             const token = localStorage.getItem('access_token');
+            if (!token) {
+                error.textContent = 'Please log in first';
+                error.classList.remove('hidden');
+                window.location.href = '/login';
+                return;
+            }
+
             try {
                 const response = await fetch('/calculations', {
                     method: 'POST',
@@ -152,6 +186,7 @@
                     },
                     body: JSON.stringify(data)
                 });
+                console.log('Add calculation response:', response.status, await response.text());
                 if (response.ok) {
                     success.textContent = 'Calculation added successfully!';
                     success.classList.remove('hidden');
@@ -161,10 +196,12 @@
                     const err = await response.json();
                     error.textContent = err.detail || 'Failed to add calculation';
                     error.classList.remove('hidden');
+                    console.error('Add calculation failed:', err);
                 }
             } catch (err) {
                 error.textContent = 'Error adding calculation: ' + err.message;
                 error.classList.remove('hidden');
+                console.error('Add calculation error:', err);
             }
         });
 
